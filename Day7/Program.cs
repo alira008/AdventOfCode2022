@@ -1,23 +1,32 @@
-﻿using System.Collections.Generic;
-
-enum FileTreeNode
+﻿enum NodeType
 {
     Directory,
     File
 }
 
-class Directory
+class Node
 {
-    public FileTreeNode NodeType { get; set; }
+    public NodeType NodeType { get; set; }
     public string Name { get; set; }
     public long Size { get; set; }
-    public List<Directory> SubDirectory { get; set; }
-    public Directory? ParentDirectory { get; set; }
+    public List<Node> Children { get; set; }
+    public Node? Parent { get; set; }
 
-    public Directory()
+    public Node()
     {
-        SubDirectory = new();
-        ParentDirectory = null;
+        Name = string.Empty;
+        Children = new();
+        Parent = null;
+    }
+
+    public override string ToString()
+    {
+        System.Text.StringBuilder sb = new(string.Empty);
+        foreach (var node in Children)
+        {
+            sb.Append("\n  " + node.ToString() + " " + node.Size);
+        }
+        return string.Format("{0}", Name) + sb.ToString();
     }
 }
 
@@ -25,72 +34,88 @@ class Program
 {
     public static void Main()
     {
+        SolvePartOne();
+        SolvePartTwo();
+    }
+
+    public static void SolvePartOne()
+    {
         var directoryTree = ParseInput("input_one.txt");
 
-        var totalSize = FindSumOfTotalDirectoriesWithLimit(100_000, directoryTree);
+        var sum = SumSizesWithinLimit(directoryTree, 100_000);
 
-        Console.WriteLine(totalSize);
+        Console.WriteLine("Sum: {0}", sum);
     }
 
-    static long FindSumOfTotalDirectoriesWithLimit(long limit, Directory dir)
+    public static void SolvePartTwo()
     {
-        if (dir.SubDirectory.Count == 0)
-        {
-            if (dir.NodeType == FileTreeNode.File)
-            {
-                // Console.WriteLine("File {0}: {1}", dir.Name, dir.Size);
-            }
-            return dir.Size;
-        }
+        var directoryTree = ParseInput("input_two.txt");
 
-        long highestSize = 0;
-        long highestIndividualSize = 0;
-        long totalSize = 0;
-        for (int i = 0; i < dir.SubDirectory.Count; ++i)
-        {
-            long size = FindSumOfTotalDirectoriesWithLimit(limit, dir.SubDirectory[i]);
-            totalSize += size;
-            if (dir.SubDirectory[i].NodeType == FileTreeNode.Directory)
-            {
-                totalSize += size;
-            }
+        var sum = FindSmallestDirectoryToDelete(
+            directoryTree,
+            30_000_000 - (70_000_000 - directoryTree.Size)
+        );
 
-            if (size > highestIndividualSize && size <= limit)
-            {
-                highestIndividualSize = size;
-                Console.WriteLine("INDV Directory: {0}, After loop: {1}", dir.Name, size);
-                // Console.WriteLine("Check indv: {0}, tot: {1}", highestIndividualSize, highestSize);
-            }
-        }
-        if (totalSize > highestSize && totalSize <= limit)
-        {
-            Console.WriteLine("Directory: {0}, After loop: {1}", dir.Name, totalSize);
-            highestSize = totalSize;
-        }
-
-        return highestSize < highestIndividualSize ? highestIndividualSize : highestSize;
+        Console.WriteLine("Sum: {0}", sum);
     }
 
-    static Directory ParseInput(string fileName)
+    static long FindSmallestDirectoryToDelete(Node root, long neededSpace)
+    {
+        long smallestSize = long.MaxValue;
+        Queue<Node> queue = new Queue<Node>();
+        queue.Enqueue(root);
+
+        while (queue.Count > 0)
+        {
+            Node current = queue.Dequeue();
+            if (current.NodeType == NodeType.Directory && current.Size >= neededSpace)
+            {
+                smallestSize = Math.Min(smallestSize, current.Size);
+            }
+
+            foreach (var child in current.Children)
+            {
+                queue.Enqueue(child);
+            }
+        }
+        return smallestSize;
+    }
+
+    static long SumSizesWithinLimit(Node root, long limit)
+    {
+        long sum = 0;
+        if (root.NodeType == NodeType.Directory && root.Size <= limit)
+        {
+            sum += root.Size;
+        }
+
+        foreach (var child in root.Children)
+        {
+            sum += SumSizesWithinLimit(child, limit);
+        }
+        return sum;
+    }
+
+    static Node ParseInput(string fileName)
     {
         var lines = ReadFile(fileName);
 
-        var topLevelDirectory = new Directory();
+        var topLevelDirectory = new Node();
         var currentDirectory = topLevelDirectory;
         foreach (var line in lines)
         {
             var tokens = line.Split(" ");
-            if (tokens.Length == 3 && tokens[0] == "$" && tokens[1] == "cd" && tokens[2] == "..")
+            if (tokens.Length == 3 && tokens[1] == "cd" && tokens[2] == "..")
             {
-                if (currentDirectory.ParentDirectory is not null)
+                if (currentDirectory.Parent is not null)
                 {
-                    currentDirectory = currentDirectory.ParentDirectory;
+                    currentDirectory = currentDirectory.Parent;
                 }
             }
-            else if (tokens.Length == 3 && tokens[0] == "$" && tokens[1] == "cd")
+            else if (tokens.Length == 3 && tokens[1] == "cd")
             {
-                var newDirectory = new Directory();
-                newDirectory.NodeType = FileTreeNode.Directory;
+                var newDirectory = new Node();
+                newDirectory.NodeType = NodeType.Directory;
                 newDirectory.Name = tokens[2];
                 if (newDirectory.Name == "/")
                 {
@@ -98,29 +123,29 @@ class Program
                 }
                 else
                 {
-                    newDirectory.ParentDirectory = currentDirectory;
-                    currentDirectory.SubDirectory.Add(newDirectory);
+                    newDirectory.Parent = currentDirectory;
+                    currentDirectory.Children.Add(newDirectory);
                 }
                 currentDirectory = newDirectory;
             }
             else if (tokens.Length == 2 && IsTokenNumber(tokens[0], out var number))
             {
-                var newDirectory = new Directory();
-                newDirectory.ParentDirectory = currentDirectory;
-                newDirectory.NodeType = FileTreeNode.File;
+                var newDirectory = new Node();
+                newDirectory.Parent = currentDirectory;
+                newDirectory.NodeType = NodeType.File;
                 newDirectory.Name = tokens[1];
                 newDirectory.Size = number;
-                currentDirectory.SubDirectory.Add(newDirectory);
+                currentDirectory.Children.Add(newDirectory);
 
                 // loop through parent directories and increment size
                 var currentParentDirectory = currentDirectory;
                 while (currentParentDirectory is not null)
                 {
-                    if (currentParentDirectory.NodeType == FileTreeNode.Directory)
+                    if (currentParentDirectory.NodeType == NodeType.Directory)
                     {
                         currentParentDirectory.Size += number;
                     }
-                    currentParentDirectory = currentParentDirectory.ParentDirectory;
+                    currentParentDirectory = currentParentDirectory.Parent;
                 }
             }
         }
