@@ -1,12 +1,17 @@
-import * as fs from "fs";
+import { readFileSync } from "fs";
 
 type Location = {
   x: number;
   y: number;
 };
 
+type Node = {
+  location: Location;
+  next: Node | null;
+};
+
 function read_lines(filename: string) {
-  return fs.readFileSync(filename, "utf8").split("\r\n");
+  return readFileSync(filename, "utf8").split("\r\n");
 }
 
 function is_out_of_bounds_horizontal(
@@ -25,6 +30,91 @@ function is_out_of_bounds_vertical(
   next_location: number
 ): boolean {
   if (next_location >= grid[0].length) {
+    return true;
+  }
+
+  return false;
+}
+
+function is_node_and_next_node_overlapping(node: Node): boolean {
+  if (node.next === null) return false;
+
+  return (
+    node.location.x === node.next.location.x &&
+    node.location.y === node.next.location.y
+  );
+}
+
+function is_node_and_next_node_next_to_each_other(node: Node): boolean {
+  if (node.next === null) return false;
+
+  // one space right
+  if (
+    node.location.x === node.next.location.x + 1 &&
+    node.location.y === node.next.location.y
+  ) {
+    return true;
+  }
+
+  // one space up
+  if (
+    node.location.x === node.next.location.x &&
+    node.location.y === node.next.location.y + 1
+  ) {
+    return true;
+  }
+
+  // one space left
+  if (
+    node.location.x === node.next.location.x - 1 &&
+    node.location.y === node.next.location.y
+  ) {
+    return true;
+  }
+
+  // one space down
+  if (
+    node.location.x === node.next.location.x &&
+    node.location.y === node.next.location.y - 1
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function is_node_and_next_node_touching_diagonal(node: Node): boolean {
+  if (node.next === null) return false;
+
+  // one space up, one space left
+  if (
+    node.location.x === node.next.location.x + 1 &&
+    node.location.y === node.next.location.y + 1
+  ) {
+    return true;
+  }
+
+  // one space down, one space right
+  if (
+    node.location.x === node.next.location.x + 1 &&
+    node.location.y === node.next.location.y - 1
+  ) {
+    return true;
+  }
+
+  // one space up, one space left
+  if (
+    node.location.x === node.next.location.x - 1 &&
+    node.location.y === node.next.location.y + 1
+  ) {
+    return true;
+  }
+
+  // one space down, one space left
+  if (
+    node.location.x === node.next.location.x - 1 &&
+    node.location.y === node.next.location.y - 1
+  ) {
     return true;
   }
 
@@ -314,5 +404,4 @@ function solve(moves: string[]) {
   console.log("Visited spaces: " + count);
 }
 
-let moves = read_lines("input_one");
-solve(moves);
+// solve(moves);
