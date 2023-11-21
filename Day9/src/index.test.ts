@@ -15,7 +15,7 @@ R 2`);
 });
 
 test("test part two", () => {
-  let answer = solve_part_one(`R 5
+  let answer = solve_part_two(`R 5
 U 8
 L 8
 D 3
