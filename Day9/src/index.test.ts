@@ -1,4 +1,3 @@
-import { readFileSync } from "fs";
 import { solve_part_one } from "./solution";
 import { solve_part_two } from "./solution";
 
@@ -23,5 +22,5 @@ R 17
 D 10
 L 25
 U 20`);
-  expect(answer).toBe(39);
+  expect(answer).toBe(36);
 });

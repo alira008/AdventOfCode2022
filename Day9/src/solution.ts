@@ -4,14 +4,9 @@ type Location = {
   y: number;
 };
 
-type Node = {
-  location: Location;
-  next: Node | null;
-};
-
 function are_nodes_overlapping(
   node_location: Location,
-  other_node_location: Location,
+  other_node_location: Location
 ): boolean {
   return (
     node_location.x === other_node_location.x &&
@@ -21,7 +16,7 @@ function are_nodes_overlapping(
 
 function are_nodes_next_to_each_other(
   node_location: Location,
-  other_node_location: Location,
+  other_node_location: Location
 ): boolean {
   // one space right
   if (
@@ -60,7 +55,7 @@ function are_nodes_next_to_each_other(
 
 function are_nodes_touching_diagonal(
   node_location: Location,
-  other_node_location: Location,
+  other_node_location: Location
 ): boolean {
   // one space up, one space left
   if (
@@ -99,7 +94,7 @@ function are_nodes_touching_diagonal(
 
 function are_nodes_touching(
   node_location: Location,
-  other_node_location: Location,
+  other_node_location: Location
 ): boolean {
   return (
     are_nodes_next_to_each_other(node_location, other_node_location) ||
@@ -108,9 +103,9 @@ function are_nodes_touching(
   );
 }
 
-function move_tail(
+function move_node(
   node_location: Location,
-  other_node_location: Location,
+  other_node_location: Location
 ): Location | undefined {
   // find closest x
   let closest_new_other_node_location: Location | undefined = undefined;
@@ -122,16 +117,22 @@ function move_tail(
         y: other_node_location.y + y,
       };
       if (
-        are_nodes_next_to_each_other(node_location, new_other_node_location) ||
-        are_nodes_touching_diagonal(node_location, new_other_node_location)
+        are_nodes_next_to_each_other(node_location, new_other_node_location)
       ) {
-        if (closest_new_other_node_location === undefined) {
-          closest_new_other_node_location = new_other_node_location;
-        } else if (
-          Math.abs(new_other_node_location.x - node_location.x) +
-            Math.abs(new_other_node_location.y - node_location.y) <
-          Math.abs(closest_new_other_node_location.x - node_location.x) +
-            Math.abs(closest_new_other_node_location.y - node_location.y)
+        closest_new_other_node_location = new_other_node_location;
+      }
+    }
+  }
+
+  if (closest_new_other_node_location === undefined) {
+    for (let x = -1; x <= 1; ++x) {
+      for (let y = -1; y <= 1; ++y) {
+        let new_other_node_location = {
+          x: other_node_location.x + x,
+          y: other_node_location.y + y,
+        };
+        if (
+          are_nodes_touching_diagonal(node_location, new_other_node_location)
         ) {
           closest_new_other_node_location = new_other_node_location;
         }
@@ -167,8 +168,8 @@ export function solve_part_one(input: string): number {
 
   let head_position: Location = { x: 0, y: 0 };
   let tail_position: Location = { x: 0, y: 0 };
-  let visited_positions = new Set<Location>();
-  visited_positions.add(tail_position);
+  let visited_positions = new Set<string>();
+  visited_positions.add(JSON.stringify(tail_position));
 
   for (let move of moves) {
     // move the head
@@ -183,19 +184,15 @@ export function solve_part_one(input: string): number {
     }
 
     // check if tail is touching head
-    let new_tail_position: Location;
-    if (move === "UP") {
-      new_tail_position = { ...tail_position, y: tail_position.y + 1 };
-    } else if (move === "DOWN") {
-      new_tail_position = { ...tail_position, y: tail_position.y - 1 };
-    } else if (move === "LEFT") {
-      new_tail_position = { ...tail_position, x: tail_position.x - 1 };
-    } else {
-      new_tail_position = { ...tail_position, x: tail_position.x + 1 };
-    }
-    tail_position = new_tail_position;
+    let new_tail_position: Location | undefined = move_node(
+      head_position,
+      tail_position
+    );
 
-    visited_positions.add(new_tail_position);
+    if (new_tail_position) {
+      tail_position = new_tail_position;
+      visited_positions.add(JSON.stringify(new_tail_position));
+    }
   }
 
   return visited_positions.size;
@@ -224,25 +221,23 @@ export function solve_part_two(input: string): number {
       return moves;
     });
 
-  let head_position: Location = { x: 0, y: 0 };
-  let tail_position: Location = { x: 0, y: 0 };
   let rope: Location[] = [];
   rope.length = 10;
-  rope = rope.fill({ x: 0, y: 0 }, 0);
-  let rope_directions: Array<Direction | undefined> = [];
-  rope_directions.length = 10;
-  rope_directions = rope_directions.fill(undefined, 0);
-  let visited_positions = new Set<Location>();
-  visited_positions.add(tail_position);
+
+  // fill rope
+  for (let i = 0; i < rope.length; ++i) {
+    rope[i] = { x: 0, y: 0 };
+  }
+
+  let visited_positions = new Set<string>();
+  visited_positions.add(JSON.stringify({ x: 0, y: 0 }));
 
   for (let move of moves) {
     // move the head
-    if (move === "UP") head_position.y += 1;
-    else if (move === "DOWN") head_position.y -= 1;
-    else if (move === "LEFT") head_position.x -= 1;
-    else if (move === "RIGHT") head_position.x += 1;
-    rope[0] = head_position;
-    rope_directions[0] = move;
+    if (move === "UP") rope[0].y += 1;
+    else if (move === "DOWN") rope[0].y -= 1;
+    else if (move === "LEFT") rope[0].x -= 1;
+    else if (move === "RIGHT") rope[0].x += 1;
 
     for (let i = 1; i < rope.length; ++i) {
       // if current node and prev node are touching, skip
@@ -251,31 +246,22 @@ export function solve_part_two(input: string): number {
       }
 
       // check if tail is touching head
-      let new_rope_node_position: Location | undefined = undefined;
-      if (rope_directions[i - 1] === "UP") {
-        new_rope_node_position = { ...rope[i], y: rope[i].y + 1 };
-        rope_directions[i] = 'UP';
-      } else if (rope_directions[i - 1] === "DOWN") {
-        new_rope_node_position = { ...rope[i], y: rope[i].y - 1 };
-        rope_directions[i] = 'DOWN';
-      } else if (rope_directions[i - 1] === "LEFT") {
-        new_rope_node_position = { ...rope[i], x: rope[i].x - 1 };
-        rope_directions[i] = 'LEFT';
-      } else if (rope_directions[i - 1] == "RIGHT") {
-        new_rope_node_position = { ...rope[i], x: rope[i].x + 1 };
-        rope_directions[i] = 'RIGHT';
-      } else {
-        rope_directions[i] = undefined;
-      }
+      let new_rope_node_position: Location | undefined = move_node(
+        rope[i - 1],
+        rope[i]
+      );
 
       if (new_rope_node_position) {
         rope[i] = new_rope_node_position;
-        visited_positions.add(new_rope_node_position);
+
+        // if last node because we only want to know the visited positions of the tail,
+        // add to visited
+        if (i === rope.length - 1) {
+          visited_positions.add(JSON.stringify(new_rope_node_position));
+        }
       }
     }
   }
-
-    console.log(visited_positions)
 
   return visited_positions.size;
 }
